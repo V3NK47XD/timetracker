@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Focus Tracker</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #fff;
+    }
+    h1 {
+      margin-bottom: 1rem;
+      color: #f0f0f0;
+    }
+    .category {
+      background: #1e1e1e;
+      width: 90%;
+      max-width: 600px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      border-radius: 1rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .category h2 {
+      margin: 0 0 1rem;
+      color: #ffcc70;
+    }
+    .progress-container {
+      width: 100%;
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, #ff6a00, #ee0979);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: #6200ea;
+      color: white;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #3700b3;
+    }
+    .timer {
+      font-weight: bold;
+      color: #a0e3ff;
+    }
+    .history {
+      margin-top: 2rem;
+      max-width: 600px;
+      width: 90%;
+    }
+    .history h3 {
+      color: #ffd700;
+    }
+    .history pre {
+      background: #1e1e1e;
+      padding: 1rem;
+      border-radius: 1rem;
+      color: #ccc;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Weekly Focus Tracker</h1>
+  <div id="categories"></div>
+  <div class="history">
+    <h3>Past Days Performance</h3>
+    <pre id="historyDisplay">Loading...</pre>
+  </div>
+
+  <script>
+    const categories = ['DSA & Logic', 'Developer', 'Design', 'Health', 'Electronics'];
+    const totalSeconds = 5 * 60 * 60; // 5 hours
+    const progress = {};
+    const timers = {};
+    const intervals = {};
+
+    const categoriesContainer = document.getElementById('categories');
+
+    categories.forEach(category => {
+      progress[category] = 0;
+      timers[category] = 0;
+
+      const div = document.createElement('div');
+      div.className = 'category';
+      div.innerHTML = `
+        <h2>${category}</h2>
+        <div class="progress-container">
+          <div class="progress-bar" id="progress-${category}"></div>
+        </div>
+        <p class="timer" id="timer-${category}">0h 0m 0s / 5h</p>
+        <div class="controls">
+          <button onclick="startTimer('${category}')">Start</button>
+          <button onclick="stopTimer('${category}')">Stop</button>
+          <button onclick="resetTimer('${category}')">Reset</button>
+        </div>
+      `;
+      categoriesContainer.appendChild(div);
+    });
+
+    function startTimer(category) {
+      if (!intervals[category]) {
+        intervals[category] = setInterval(() => {
+          if (timers[category] < totalSeconds) {
+            timers[category]++;
+            updateDisplay(category);
+          } else {
+            stopTimer(category);
+          }
+        }, 1000);
+      }
+    }
+
+    function stopTimer(category) {
+      clearInterval(intervals[category]);
+      intervals[category] = null;
+    }
+
+    function resetTimer(category) {
+      stopTimer(category);
+      timers[category] = 0;
+      updateDisplay(category);
+    }
+
+    function updateDisplay(category) {
+      const percent = (timers[category] / totalSeconds) * 100;
+      const hrs = Math.floor(timers[category] / 3600);
+      const mins = Math.floor((timers[category] % 3600) / 60);
+      const secs = timers[category] % 60;
+      document.getElementById(`progress-${category}`).style.width = percent + '%';
+      document.getElementById(`timer-${category}`).textContent = `${hrs}h ${mins}m ${secs}s / 5h`;
+    }
+
+    function saveDailyStats() {
+      const today = new Date().toLocaleDateString();
+      const data = {};
+      categories.forEach(category => {
+        data[category] = timers[category];
+      });
+      let history = JSON.parse(localStorage.getItem('trackerHistory') || '{}');
+      history[today] = data;
+      localStorage.setItem('trackerHistory', JSON.stringify(history));
+      loadHistory();
+    }
+
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem('trackerHistory') || '{}');
+      let display = '';
+      Object.keys(history).reverse().forEach(date => {
+        display += `${date}\n`;
+        categories.forEach(cat => {
+          const sec = history[date][cat] || 0;
+          const h = Math.floor(sec / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          display += `  ${cat}: ${h}h ${m}m\n`;
+        });
+        display += '\n';
+      });
+      document.getElementById('historyDisplay').textContent = display || 'No data yet.';
+    }
+
+    // Auto-save at midnight
+    setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 23 && now.getMinutes() === 59 && now.getSeconds() === 50) {
+        saveDailyStats();
+      }
+    }, 1000);
+
+    window.addEventListener('beforeunload', saveDailyStats);
+    loadHistory();
+  </script>
+</body>
+</html>
